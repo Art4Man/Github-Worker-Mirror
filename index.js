@@ -19,11 +19,45 @@ const HTML_PAGE = `
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GitHub Mirror</title>
     <style>
+        :root {
+            --bg: #f5f5f7;
+            --text: #1d1d1f;
+            --text-secondary: #86868b;
+            --card-bg: rgba(255, 255, 255, 0.72);
+            --card-border: rgba(0, 0, 0, 0.06);
+            --card-shadow: rgba(0, 0, 0, 0.06);
+            --input-bg: #fff;
+            --input-border: #d2d2d7;
+            --accent: #0071e3;
+            --accent-hover: #0077ed;
+            --result-bg: #f5f5f7;
+            --row-bg: #fff;
+            --copy-bg: #e8e8ed;
+            --copy-hover: #dcdce0;
+            --placeholder: #aeaeb2;
+        }
+        [data-theme="dark"] {
+            --bg: #1c1c1e;
+            --text: #f5f5f7;
+            --text-secondary: #98989d;
+            --card-bg: rgba(44, 44, 46, 0.72);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --card-shadow: rgba(0, 0, 0, 0.3);
+            --input-bg: #2c2c2e;
+            --input-border: #48484a;
+            --accent: #0a84ff;
+            --accent-hover: #409cff;
+            --result-bg: #2c2c2e;
+            --row-bg: #1c1c1e;
+            --copy-bg: #48484a;
+            --copy-hover: #636366;
+            --placeholder: #636366;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
-            background: #f5f5f7;
-            color: #1d1d1f;
+            background: var(--bg);
+            color: var(--text);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -31,17 +65,19 @@ const HTML_PAGE = `
             padding: 24px;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            transition: background 0.3s, color 0.3s;
         }
         .card {
-            background: rgba(255, 255, 255, 0.72);
+            background: var(--card-bg);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(0, 0, 0, 0.06);
+            border: 1px solid var(--card-border);
             border-radius: 20px;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 4px 24px var(--card-shadow);
             padding: 40px;
             width: 100%;
             max-width: 520px;
+            transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
         }
         h1 {
             font-size: 28px;
@@ -51,7 +87,7 @@ const HTML_PAGE = `
         }
         .subtitle {
             font-size: 15px;
-            color: #86868b;
+            color: var(--text-secondary);
             line-height: 1.5;
             margin-bottom: 32px;
         }
@@ -60,24 +96,24 @@ const HTML_PAGE = `
             display: block;
             font-size: 13px;
             font-weight: 600;
-            color: #1d1d1f;
+            color: var(--text);
             margin-bottom: 8px;
         }
         input {
             width: 100%;
             padding: 12px 16px;
-            border: 1px solid #d2d2d7;
+            border: 1px solid var(--input-border);
             border-radius: 12px;
-            background: #fff;
-            color: #1d1d1f;
+            background: var(--input-bg);
+            color: var(--text);
             font-size: 15px;
             font-family: inherit;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.3s, color 0.3s;
         }
-        input::placeholder { color: #aeaeb2; }
+        input::placeholder { color: var(--placeholder); }
         input:focus {
             outline: none;
-            border-color: #0071e3;
+            border-color: var(--accent);
             box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
         }
         .btn {
@@ -88,7 +124,7 @@ const HTML_PAGE = `
             padding: 12px 24px;
             border: none;
             border-radius: 12px;
-            background: #0071e3;
+            background: var(--accent);
             color: #fff;
             font-size: 15px;
             font-weight: 600;
@@ -96,35 +132,37 @@ const HTML_PAGE = `
             cursor: pointer;
             transition: background 0.2s, transform 0.1s;
         }
-        .btn:hover { background: #0077ed; }
+        .btn:hover { background: var(--accent-hover); }
         .btn:active { transform: scale(0.98); }
         .result {
             margin-top: 24px;
             display: none;
-            background: #f5f5f7;
+            background: var(--result-bg);
             padding: 16px;
             border-radius: 14px;
             animation: fadeIn 0.3s ease;
+            transition: background 0.3s;
         }
         .result-label {
             font-size: 13px;
             font-weight: 600;
-            color: #1d1d1f;
+            color: var(--text);
             margin-bottom: 10px;
         }
         .link-row {
             display: flex;
             align-items: center;
             gap: 8px;
-            background: #fff;
+            background: var(--row-bg);
             padding: 8px 8px 8px 16px;
             border-radius: 10px;
-            border: 1px solid #d2d2d7;
+            border: 1px solid var(--input-border);
+            transition: background 0.3s, border-color 0.3s;
         }
         .link-row a {
             flex: 1;
             min-width: 0;
-            color: #0071e3;
+            color: var(--accent);
             text-decoration: none;
             font-size: 13px;
             font-family: "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
@@ -138,20 +176,28 @@ const HTML_PAGE = `
             padding: 6px 14px;
             border: none;
             border-radius: 8px;
-            background: #e8e8ed;
-            color: #1d1d1f;
+            background: var(--copy-bg);
+            color: var(--text);
             font-size: 13px;
             font-weight: 600;
             font-family: inherit;
             cursor: pointer;
             transition: background 0.2s;
         }
-        .btn-copy:hover { background: #dcdce0; }
+        .btn-copy:hover { background: var(--copy-hover); }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
     </style>
+    <script>
+        (function() {
+            var hour = new Date().getHours();
+            var isNight = hour >= 19 || hour < 7;
+            var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (isNight || prefersDark) document.documentElement.setAttribute('data-theme', 'dark');
+        })();
+    </script>
 </head>
 <body>
     <div class="card">
