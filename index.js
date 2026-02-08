@@ -17,141 +17,158 @@ const HTML_PAGE = `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>High Speed GitHub Mirror</title>
+    <title>GitHub Mirror</title>
     <style>
-        :root {
-            --primary: #f6821f;
-            --bg: #1a1a1a;
-            --card: #2c2c2c;
-            --text: #ffffff;
-            --input-bg: #383838;
-            --success: #00ff9d;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
+            padding: 24px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
-        .container {
-            background-color: var(--card);
-            padding: 2.5rem;
-            border-radius: 16px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        .card {
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            border-radius: 20px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+            padding: 40px;
             width: 100%;
-            max-width: 550px;
-            text-align: center;
+            max-width: 520px;
         }
-        h1 { margin-top: 0; color: var(--primary); font-size: 1.8rem; }
-        p { color: #aaa; margin-bottom: 2rem; line-height: 1.5; }
-        
-        .input-group { margin-bottom: 1.5rem; text-align: left; }
-        label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; color: #ddd; }
-        
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 15px;
+            color: #86868b;
+            line-height: 1.5;
+            margin-bottom: 32px;
+        }
+        .field { margin-bottom: 20px; }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 8px;
+        }
         input {
             width: 100%;
-            padding: 14px;
-            border: 1px solid #444;
-            border-radius: 8px;
-            background-color: var(--input-bg);
-            color: white;
-            box-sizing: border-box;
-            font-size: 1rem;
-            transition: border 0.2s;
-        }
-        input:focus { outline: none; border-color: var(--primary); }
-
-        .btn-main {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 14px 24px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            transition: transform 0.1s, opacity 0.2s;
-        }
-        .btn-main:hover { opacity: 0.9; }
-        .btn-main:active { transform: scale(0.98); }
-
-        /* Result Area */
-        #result-area {
-            margin-top: 2rem;
-            display: none;
-            background: #222;
-            padding: 1.5rem;
+            padding: 12px 16px;
+            border: 1px solid #d2d2d7;
             border-radius: 12px;
-            border: 1px solid #333;
+            background: #fff;
+            color: #1d1d1f;
+            font-size: 15px;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input::placeholder { color: #aeaeb2; }
+        input:focus {
+            outline: none;
+            border-color: #0071e3;
+            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            background: #0071e3;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn:hover { background: #0077ed; }
+        .btn:active { transform: scale(0.98); }
+        .result {
+            margin-top: 24px;
+            display: none;
+            background: #f5f5f7;
+            padding: 16px;
+            border-radius: 14px;
             animation: fadeIn 0.3s ease;
         }
-        
-        .link-container {
+        .result-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 10px;
+        }
+        .link-row {
             display: flex;
             align-items: center;
-            background: #111;
-            padding: 8px;
-            border-radius: 6px;
-            margin-top: 10px;
-            border: 1px solid #333;
+            gap: 8px;
+            background: #fff;
+            padding: 8px 8px 8px 16px;
+            border-radius: 10px;
+            border: 1px solid #d2d2d7;
         }
-
-        .link-text {
-            flex-grow: 1;
-            color: var(--success);
+        .link-row a {
+            flex: 1;
+            min-width: 0;
+            color: #0071e3;
             text-decoration: none;
-            font-family: monospace;
-            font-size: 0.9rem;
+            font-size: 13px;
+            font-family: "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            padding: 0 10px;
-            text-align: left;
         }
-        .link-text:hover { text-decoration: underline; }
-
+        .link-row a:hover { text-decoration: underline; }
         .btn-copy {
-            background-color: #444;
-            color: white;
+            flex-shrink: 0;
+            padding: 6px 14px;
             border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            cursor: pointer;
+            border-radius: 8px;
+            background: #e8e8ed;
+            color: #1d1d1f;
+            font-size: 13px;
             font-weight: 600;
-            white-space: nowrap;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s;
         }
-        .btn-copy:hover { background-color: #555; }
-
+        .btn-copy:hover { background: #dcdce0; }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🚀 2ri4e Mirror</h1>
-        <p>Enter a GitHub Release URL below to generate a high-speed, cached mirror link.</p>
-        
-        <div class="input-group">
+    <div class="card">
+        <h1>GitHub Mirror</h1>
+        <p class="subtitle">Generate a high-speed, cached mirror link for any GitHub release.</p>
+
+        <div class="field">
             <label for="ghUrl">GitHub Release URL</label>
-            <input type="text" id="ghUrl" placeholder="https://github.com/username/repo/releases/download/v1.0/app.zip" autocomplete="off">
+            <input type="text" id="ghUrl" placeholder="https://github.com/user/repo/releases/download/v1.0/file.zip" autocomplete="off">
         </div>
 
-        <button class="btn-main" onclick="generateLink()">Generate Fast Link</button>
+        <button class="btn" onclick="generateLink()">Generate Mirror Link</button>
 
-        <div id="result-area">
-            <label style="text-align: left">Your Mirror Link:</label>
-            <div class="link-container">
-                <a id="mirrorLink" class="link-text" href="#" target="_blank"></a>
+        <div id="result-area" class="result">
+            <div class="result-label">Mirror Link</div>
+            <div class="link-row">
+                <a id="mirrorLink" href="#" target="_blank"></a>
                 <button class="btn-copy" onclick="copyToClipboard()" id="copyBtn">Copy</button>
             </div>
         </div>
@@ -175,18 +192,14 @@ const HTML_PAGE = `
                     return;
                 }
 
-                // Replace github.com with the current worker hostname
                 const workerHost = window.location.host;
                 const newUrl = input.replace(urlObj.hostname, workerHost);
 
                 linkDisplay.href = newUrl;
                 linkDisplay.textContent = newUrl;
                 resultArea.style.display = 'block';
-                
-                // Reset copy button text
-                const btn = document.getElementById('copyBtn');
-                btn.textContent = "Copy";
-                btn.style.backgroundColor = "#444";
+
+                document.getElementById('copyBtn').textContent = "Copy";
             } catch (e) {
                 alert("Invalid URL format");
             }
@@ -195,13 +208,15 @@ const HTML_PAGE = `
         function copyToClipboard() {
             const link = document.getElementById('mirrorLink').textContent;
             const btn = document.getElementById('copyBtn');
-            
+
             navigator.clipboard.writeText(link).then(() => {
                 btn.textContent = "Copied!";
-                btn.style.backgroundColor = "#28a745"; // Green success color
+                btn.style.background = "#34c759";
+                btn.style.color = "#fff";
                 setTimeout(() => {
                     btn.textContent = "Copy";
-                    btn.style.backgroundColor = "#444";
+                    btn.style.background = "";
+                    btn.style.color = "";
                 }, 2000);
             }).catch(err => {
                 console.error('Failed to copy: ', err);
