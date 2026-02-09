@@ -172,6 +172,20 @@ const HTML_PAGE = `
             text-overflow: ellipsis;
         }
         .link-row a:hover { text-decoration: underline; }
+        #mirrorLink {
+            transition: opacity 0.3s ease, transform 0.3s ease, color 0.4s ease;
+        }
+        #mirrorLink.slide-out {
+            opacity: 0;
+            transform: translateY(-8px);
+        }
+        #mirrorLink.slide-in {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        #mirrorLink.highlight-pulse {
+            color: #34c759 !important;
+        }
         .btn-copy {
             flex-shrink: 0;
             padding: 6px 14px;
@@ -222,10 +236,12 @@ const HTML_PAGE = `
     </div>
 
     <script>
+        var previousMirrorUrl = null;
+
         function generateLink() {
-            const input = document.getElementById('ghUrl').value.trim();
-            const resultArea = document.getElementById('result-area');
-            const linkDisplay = document.getElementById('mirrorLink');
+            var input = document.getElementById('ghUrl').value.trim();
+            var resultArea = document.getElementById('result-area');
+            var linkDisplay = document.getElementById('mirrorLink');
 
             if (!input) {
                 alert("Please enter a URL");
@@ -233,23 +249,62 @@ const HTML_PAGE = `
             }
 
             try {
-                const urlObj = new URL(input);
+                var urlObj = new URL(input);
                 if (!urlObj.hostname.includes('github.com')) {
                     alert("Only github.com URLs are allowed");
                     return;
                 }
 
-                const workerHost = window.location.host;
-                const newUrl = input.replace(urlObj.hostname, workerHost);
+                var workerHost = window.location.host;
+                var newUrl = input.replace(urlObj.hostname, workerHost);
 
-                linkDisplay.href = newUrl;
-                linkDisplay.textContent = newUrl;
-                resultArea.style.display = 'block';
+                if (previousMirrorUrl === newUrl) {
+                    // Same URL: green pulse
+                    highlightPulse(linkDisplay);
+                } else if (previousMirrorUrl !== null) {
+                    // Different URL: smooth flip all at once
+                    flipToNew(linkDisplay, newUrl);
+                } else {
+                    // First time: just show
+                    linkDisplay.href = newUrl;
+                    linkDisplay.textContent = newUrl;
+                    resultArea.style.display = 'block';
+                }
 
+                previousMirrorUrl = newUrl;
                 document.getElementById('copyBtn').textContent = "Copy";
             } catch (e) {
                 alert("Invalid URL format");
             }
+        }
+
+        function flipToNew(linkDisplay, newUrl) {
+            var resultArea = document.getElementById('result-area');
+
+            // Step 1: slide old content out (up + fade)
+            linkDisplay.classList.add('slide-out');
+
+            setTimeout(function() {
+                // Step 2: while invisible, swap content and set position below
+                linkDisplay.href = newUrl;
+                linkDisplay.textContent = newUrl;
+                resultArea.style.display = 'block';
+                linkDisplay.classList.remove('slide-out');
+                linkDisplay.classList.add('slide-in');
+
+                // Force reflow so browser registers the slide-in state
+                void linkDisplay.offsetHeight;
+
+                // Step 3: animate from below to normal position
+                linkDisplay.classList.remove('slide-in');
+            }, 300);
+        }
+
+        function highlightPulse(linkDisplay) {
+            linkDisplay.classList.add('highlight-pulse');
+            setTimeout(function() {
+                linkDisplay.classList.remove('highlight-pulse');
+            }, 600);
         }
 
         function copyToClipboard() {
@@ -258,7 +313,7 @@ const HTML_PAGE = `
 
             navigator.clipboard.writeText(link).then(() => {
                 btn.textContent = "Copied!";
-                btn.style.background = "#34c759";
+                btn.style.background = "#2fc755";
                 btn.style.color = "#fff";
                 setTimeout(() => {
                     btn.textContent = "Copy";
