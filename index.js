@@ -1,11 +1,12 @@
 /**
- * CLOUDFLARE WORKER: GITHUB MIRROR (High Speed + UI)
- * 
+ * CLOUDFLARE WORKER: GITHUB MIRROR (High Speed + UI + API)
+ *
  * Features:
  * 1. Edge Caching (Fast downloads for popular files)
  * 2. Streaming (Low memory usage)
  * 3. Range Requests (Supports Resume/Download Managers)
  * 4. UI with "Copy to Clipboard"
+ * 5. API Endpoint (GET /api/mirror?url=...)
  */
 
 const GITHUB_URL = 'https://github.com';
@@ -284,66 +285,156 @@ export default {
             });
         }
 
-        // 2. CHECK CACHE (Speed Boost)
-        const cache = caches.default;
-        let response = await cache.match(request);
+        // 2. API ENDPOINT - Generate mirror link
+        if (url.pathname === '/api/mirror') {
+            const githubUrl = url.searchParams.get('url');
 
-        if (response) {
+            if (!githubUrl) {
+                return new Response(JSON.stringify({
+                    error: 'Missing URL parameter',
+                    usage: 'GET /api/mirror?url=https://github.com/user/repo/releases/download/...'
+                }), {
+                    status: 400,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    }
+                });
+            }
+
+            try {
+                const githubUrlObj = new URL(githubUrl);
+
+                if (!githubUrlObj.hostname.includes('github.com')) {
+                    return new Response(JSON.stringify({
+                        error: 'Only github.com URLs are allowed'
+                    }), {
+                        status: 400,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Access-Control-Allow-Origin': '*'
+                        }
+                    });
+                }
+
+                const mirrorUrl = githubUrl.replace(githubUrlObj.hostname, url.host);
+
+                return new Response(JSON.stringify({
+                    "original-url": githubUrl,
+                    "mirror-url": mirrorUrl
+                }), {
+                    status: 200,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    }
+                });
+
+            } catch (e) {
+                return new Response(JSON.stringify({
+                    error: 'Invalid URL format'
+                }), {
+                    status: 400,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    }
+                });
+            }
+        }
+
+        // 3. CHECK CACHE (Speed Boost)
+        const cache = caches.default;
+        let cachedResponse = await cache.match(request);
+
+        if (cachedResponse) {
             // HIT: Return cached file
-            let newHeaders = new Headers(response.headers);
-            newHeaders.set('X-Worker-Cache', 'HIT'); 
-            return new Response(response.body, {
-                status: response.status,
-                statusText: response.statusText,
+            let newHeaders = new Headers(cachedResponse.headers);
+            newHeaders.set('X-Worker-Cache', 'HIT');
+            return new Response(cachedResponse.body, {
+                status: cachedResponse.status,
+                statusText: cachedResponse.statusText,
                 headers: newHeaders
             });
         }
 
-        // 3. FETCH FROM ORIGIN (GitHub)
+        // 4. FETCH FROM ORIGIN (GitHub) with redirect handling
         const ghUrl = new URL(GITHUB_URL + url.pathname);
         
         try {
-            const upstreamReq = new Request(ghUrl, {
+            const upstreamHeaders = {
+                'User-Agent': 'Cloudflare-Worker-Mirror/1.0',
+                'Accept': '*/*',
+                'Accept-Encoding': 'gzip, deflate, br'
+            };
+
+            // Forward Range header for resumable downloads
+            if (request.headers.get('Range')) {
+                upstreamHeaders['Range'] = request.headers.get('Range');
+            }
+
+            // Fetch from GitHub - follow redirects automatically
+            const upstreamRes = await fetch(ghUrl, {
                 method: request.method,
-                headers: {
-                    'User-Agent': 'Cloudflare-Worker-Mirror',
-                    'Range': request.headers.get('Range') || '' // Support Resume
+                headers: upstreamHeaders,
+                redirect: 'follow', // Follow redirects (GitHub -> S3/CDN)
+                cf: {
+                    cacheTtl: CACHE_TTL,
+                    cacheEverything: true
                 }
             });
 
-            const upstreamRes = await fetch(upstreamReq);
-
-            // If upstream failed or partial content (206), pass through without caching logic for now
-            // (Caching 206 ranges is complex, simple caching works best on full 200s)
-            if (!upstreamRes.ok && upstreamRes.status !== 304) {
-                return upstreamRes;
+            // Handle errors
+            if (!upstreamRes.ok && upstreamRes.status !== 206 && upstreamRes.status !== 304) {
+                return new Response(`GitHub returned ${upstreamRes.status}: ${upstreamRes.statusText}`, {
+                    status: upstreamRes.status,
+                    headers: { 'Content-Type': 'text/plain' }
+                });
             }
 
-            // 4. PREPARE RESPONSE
+            // 5. PREPARE RESPONSE HEADERS
             let resHeaders = new Headers(upstreamRes.headers);
-            resHeaders.set('Access-Control-Allow-Origin', '*'); // Allow downloads from anywhere
+            resHeaders.set('Access-Control-Allow-Origin', '*');
+            resHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+            resHeaders.set('Access-Control-Allow-Headers', 'Range');
+            resHeaders.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
             resHeaders.set('X-Worker-Cache', 'MISS');
 
-            // Force browser and Cloudflare to cache this for a long time
+            // Long-term caching for full files
             if (upstreamRes.status === 200) {
-                resHeaders.set('Cache-Control', `public, max-age=${CACHE_TTL}`);
+                resHeaders.set('Cache-Control', `public, max-age=${CACHE_TTL}, immutable`);
             }
 
-            response = new Response(upstreamRes.body, {
+            // Handle 206 Partial Content (range requests)
+            if (upstreamRes.status === 206) {
+                // Don't cache partial responses, just stream them
+                return new Response(upstreamRes.body, {
+                    status: 206,
+                    statusText: 'Partial Content',
+                    headers: resHeaders
+                });
+            }
+
+            // 6. STREAM RESPONSE (efficient for large files)
+            const response = new Response(upstreamRes.body, {
                 status: upstreamRes.status,
                 statusText: upstreamRes.statusText,
                 headers: resHeaders
             });
 
-            // 5. SAVE TO CACHE (if full file)
-            if (upstreamRes.status === 200) {
+            // 7. CACHE FULL FILES ONLY (not partial/range responses)
+            if (upstreamRes.status === 200 && request.method === 'GET') {
+                // Cache asynchronously without blocking the response
                 ctx.waitUntil(cache.put(request, response.clone()));
             }
 
             return response;
 
         } catch (e) {
-            return new Response("Error: " + e.message, { status: 500 });
+            return new Response(`Worker Error: ${e.message}`, { 
+                status: 500,
+                headers: { 'Content-Type': 'text/plain' }
+            });
         }
     }
 };
